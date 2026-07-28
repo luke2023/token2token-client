@@ -66,11 +66,11 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: "Token2Token ${{ github.ref_name }}"
           releaseBody: "Cross-platform provider client. Unsigned artifacts may require local OS approval."
-          releaseDraft: true
+          releaseDraft: false
           prerelease: true
       - name: Attach standalone CLI
         uses: softprops/action-gh-release@v2
         with:
-          draft: true
+          draft: false
           prerelease: true
           files: release-cli/${{ matrix.cli_name }}

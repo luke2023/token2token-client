@@ -19,6 +19,7 @@ tauri-build = { version = "2.4", features = [] }
 [dependencies]
 anyhow.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 tauri = { version = "2.8", features = [] }
 tauri-plugin-shell = "2.3"
 tokio.workspace = true
@@ -27,4 +28,3 @@ token2token-protocol = { path = "../../../crates/protocol" }
 
 [lints]
 workspace = true
-
