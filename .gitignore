@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.example
+.DS_Store
+node_modules/
+dist/
+target/
+coverage/
+*.log
+*.pem
+*.key
+src-tauri/gen/
