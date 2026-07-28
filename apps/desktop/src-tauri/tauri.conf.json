@@ -1,0 +1,33 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Token2Token",
+  "version": "0.1.0",
+  "identifier": "com.tokens2tokens.provider",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Token2Token Provider",
+        "width": 1080,
+        "height": 820,
+        "minWidth": 720,
+        "minHeight": 640
+      }
+    ],
+    "security": { "csp": null }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "externalBin": ["binaries/token2token"],
+    "category": "DeveloperTool",
+    "shortDescription": "Share GPU compute on Token2Token",
+    "longDescription": "Connect Ollama, LM Studio, llama.cpp, or vLLM and earn Indigo credit for completed inference."
+  }
+}
+

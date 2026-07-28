@@ -10,3 +10,9 @@ coverage/
 *.pem
 *.key
 src-tauri/gen/
+.DS_Store
+target/
+apps/desktop/dist/
+apps/desktop/node_modules/
+apps/desktop/src-tauri/binaries/*
+!apps/desktop/src-tauri/binaries/.gitkeep

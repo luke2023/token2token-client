@@ -1,0 +1,76 @@
+name: Desktop release
+on:
+  push:
+    tags: ["v*"]
+permissions:
+  contents: write
+jobs:
+  bundle:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            binary: target/x86_64-unknown-linux-gnu/release/token2token
+            cli_name: token2token-linux-x86_64
+          - platform: windows-latest
+            target: x86_64-pc-windows-msvc
+            binary: target/x86_64-pc-windows-msvc/release/token2token.exe
+            cli_name: token2token-windows-x86_64.exe
+          - platform: macos-14
+            target: aarch64-apple-darwin
+            binary: target/aarch64-apple-darwin/release/token2token
+            cli_name: token2token-macos-arm64
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Linux desktop libraries
+        if: matrix.platform == 'ubuntu-24.04'
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/desktop/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+      - run: npm ci
+        working-directory: apps/desktop
+      - run: cargo build --release --target ${{ matrix.target }} -p token2token-daemon
+      - name: Prepare desktop sidecar
+        shell: bash
+        run: |
+          suffix=""
+          if [[ "${{ matrix.platform }}" == "windows-latest" ]]; then suffix=".exe"; fi
+          cp "${{ matrix.binary }}" "apps/desktop/src-tauri/binaries/token2token-${{ matrix.target }}${suffix}"
+          mkdir -p release-cli
+          cp "${{ matrix.binary }}" "release-cli/${{ matrix.cli_name }}"
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: apps/desktop
+          tauriScript: npm run tauri
+          args: --target ${{ matrix.target }}
+          tagName: ${{ github.ref_name }}
+          releaseName: "Token2Token ${{ github.ref_name }}"
+          releaseBody: "Cross-platform provider client. Unsigned artifacts may require local OS approval."
+          releaseDraft: true
+          prerelease: true
+      - name: Attach standalone CLI
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          prerelease: true
+          files: release-cli/${{ matrix.cli_name }}
