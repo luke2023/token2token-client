@@ -10,6 +10,7 @@ coverage/
 *.pem
 *.key
 src-tauri/gen/
+apps/desktop/src-tauri/gen/
 .DS_Store
 target/
 apps/desktop/dist/

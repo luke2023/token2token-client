@@ -9,6 +9,14 @@ use token2token_connectors::{EngineKind, build_engine};
 use token2token_protocol::ProviderMode;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+struct ManagedVllmStatus {
+    installed: bool,
+    running: bool,
+    container: String,
+    engine_url: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 struct DesktopConfig {
     relay_url: String,
@@ -113,10 +121,23 @@ async fn start_provider(
         .args(["--config", &config.to_string_lossy(), "run"]);
     let (mut events, child) = sidecar.spawn().map_err(|error| error.to_string())?;
     *process.0.lock().unwrap() = Some(child);
+    let process_app = app.clone();
     tauri::async_runtime::spawn(async move {
         while let Some(event) = events.recv().await {
-            if let CommandEvent::Stderr(bytes) = event {
-                eprintln!("{}", String::from_utf8_lossy(&bytes));
+            match event {
+                CommandEvent::Stderr(bytes) => {
+                    eprintln!("{}", String::from_utf8_lossy(&bytes));
+                }
+                CommandEvent::Terminated(_) => {
+                    process_app
+                        .state::<ProviderProcess>()
+                        .0
+                        .lock()
+                        .unwrap()
+                        .take();
+                    break;
+                }
+                _ => {}
             }
         }
     });
@@ -131,6 +152,75 @@ fn stop_provider(process: tauri::State<'_, ProviderProcess>) -> Result<(), Strin
     Ok(())
 }
 
+async fn managed_vllm_command(app: &tauri::AppHandle, args: Vec<String>) -> Result<String, String> {
+    let output = app
+        .shell()
+        .sidecar("token2token")
+        .map_err(|error| error.to_string())?
+        .args(args)
+        .output()
+        .await
+        .map_err(|error| error.to_string())?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_owned();
+        return Err(if stderr.is_empty() {
+            "managed vLLM command failed".into()
+        } else {
+            stderr
+        });
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_owned())
+}
+
+#[tauri::command]
+async fn managed_vllm_status(
+    app: tauri::AppHandle,
+    port: u16,
+) -> Result<ManagedVllmStatus, String> {
+    let output = managed_vllm_command(
+        &app,
+        vec![
+            "managed-vllm".into(),
+            "status".into(),
+            "--port".into(),
+            port.to_string(),
+        ],
+    )
+    .await?;
+    serde_json::from_str(&output).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+async fn start_managed_vllm(
+    app: tauri::AppHandle,
+    model: String,
+    port: u16,
+    cpu: bool,
+    max_model_len: u32,
+) -> Result<ManagedVllmStatus, String> {
+    let mut args = vec![
+        "managed-vllm".into(),
+        "start".into(),
+        "--model".into(),
+        model,
+        "--port".into(),
+        port.to_string(),
+        "--max-model-len".into(),
+        max_model_len.to_string(),
+    ];
+    if cpu {
+        args.push("--cpu".into());
+    }
+    managed_vllm_command(&app, args).await?;
+    managed_vllm_status(app, port).await
+}
+
+#[tauri::command]
+async fn stop_managed_vllm(app: tauri::AppHandle, port: u16) -> Result<ManagedVllmStatus, String> {
+    managed_vllm_command(&app, vec!["managed-vllm".into(), "stop".into()]).await?;
+    managed_vllm_status(app, port).await
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -141,7 +231,10 @@ pub fn run() {
             save_config,
             discover_models,
             start_provider,
-            stop_provider
+            stop_provider,
+            managed_vllm_status,
+            start_managed_vllm,
+            stop_managed_vllm
         ])
         .run(tauri::generate_context!())
         .expect("error while running Token2Token");

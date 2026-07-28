@@ -3869,7 +3869,7 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "token2token-connectors"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3882,13 +3882,14 @@ dependencies = [
 
 [[package]]
 name = "token2token-daemon"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "chrono",
  "clap",
  "dirs",
  "futures-util",
+ "reqwest 0.12.28",
  "secrecy",
  "serde",
  "serde_json",
@@ -3904,7 +3905,7 @@ dependencies = [
 
 [[package]]
 name = "token2token-desktop"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "serde",
@@ -3919,7 +3920,7 @@ dependencies = [
 
 [[package]]
 name = "token2token-protocol"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "chrono",
  "serde",

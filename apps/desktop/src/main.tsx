@@ -18,6 +18,12 @@ type Config = {
 };
 
 type Model = { id: string; architecture: string; context_length: number; quantization?: string };
+type ManagedVllmStatus = {
+  installed: boolean;
+  running: boolean;
+  container: string;
+  engine_url?: string;
+};
 
 const fallback: Config = {
   relay_url: "wss://api.tokens2tokens.com/v1/nodes/connect",
@@ -38,9 +44,16 @@ function App() {
   const [models, setModels] = useState<Model[]>([]);
   const [status, setStatus] = useState("Offline");
   const [busy, setBusy] = useState(false);
+  const [managedBusy, setManagedBusy] = useState(false);
+  const [managedModel, setManagedModel] = useState("Qwen/Qwen2.5-0.5B-Instruct");
+  const [managedPort, setManagedPort] = useState(18000);
+  const [managedCpu, setManagedCpu] = useState(false);
+  const [managedContext, setManagedContext] = useState(1024);
+  const [managed, setManaged] = useState<ManagedVllmStatus | null>(null);
 
   useEffect(() => {
     invoke<Config>("load_config").then(setConfig).catch(() => undefined);
+    invoke<ManagedVllmStatus>("managed_vllm_status", { port: 18000 }).then(setManaged).catch(() => undefined);
   }, []);
 
   const patch = (value: Partial<Config>) => setConfig((current) => ({ ...current, ...value }));
@@ -84,6 +97,52 @@ function App() {
     setStatus("Offline");
   }
 
+  async function refreshManaged() {
+    setManagedBusy(true);
+    try {
+      const current = await invoke<ManagedVllmStatus>("managed_vllm_status", { port: managedPort });
+      setManaged(current);
+      setStatus(current.running ? "Managed vLLM ready" : "Managed vLLM stopped");
+    } catch (error) {
+      setStatus(`Docker unavailable: ${String(error)}`);
+    } finally {
+      setManagedBusy(false);
+    }
+  }
+
+  async function startManaged() {
+    setManagedBusy(true);
+    setStatus("Starting managed vLLM · model download may take several minutes…");
+    try {
+      const current = await invoke<ManagedVllmStatus>("start_managed_vllm", {
+        model: managedModel,
+        port: managedPort,
+        cpu: managedCpu,
+        maxModelLen: managedContext
+      });
+      setManaged(current);
+      patch({ engine: "openai-compatible", engine_url: current.engine_url || `http://127.0.0.1:${managedPort}` });
+      setStatus("Managed vLLM ready · detect models to publish");
+    } catch (error) {
+      setStatus(`Managed vLLM failed: ${String(error)}`);
+    } finally {
+      setManagedBusy(false);
+    }
+  }
+
+  async function stopManaged() {
+    setManagedBusy(true);
+    try {
+      const current = await invoke<ManagedVllmStatus>("stop_managed_vllm", { port: managedPort });
+      setManaged(current);
+      setStatus("Managed vLLM stopped");
+    } catch (error) {
+      setStatus(`Could not stop managed vLLM: ${String(error)}`);
+    } finally {
+      setManagedBusy(false);
+    }
+  }
+
   return (
     <main>
       <header>
@@ -112,6 +171,17 @@ function App() {
           <div className="models">
             {models.map((model) => <div className="model" key={model.id}><strong>{model.id}</strong><small>{model.architecture} · {model.context_length.toLocaleString()} ctx</small></div>)}
             {!models.length && <p className="muted">No models scanned yet.</p>}
+          </div>
+          <div className="managed">
+            <div className="managed-head"><div><b>Managed vLLM</b><small>Docker · local-only endpoint</small></div><span className={managed?.running ? "runtime-on" : ""}>{managed?.running ? "Running" : "Stopped"}</span></div>
+            <label>Hugging Face model<input value={managedModel} onChange={(e) => setManagedModel(e.target.value)} /></label>
+            <div className="runtime-grid">
+              <label>Device<select value={managedCpu ? "cpu" : "gpu"} onChange={(e) => setManagedCpu(e.target.value === "cpu")}><option value="gpu">NVIDIA GPU</option><option value="cpu">CPU fallback</option></select></label>
+              <label>Port<input type="number" min="1024" max="65535" value={managedPort} onChange={(e) => setManagedPort(Number(e.target.value))} /></label>
+              <label>Max context<input type="number" min="128" max="131072" value={managedContext} onChange={(e) => setManagedContext(Number(e.target.value))} /></label>
+            </div>
+            <p className="runtime-note">Managed isolation is not confidential computing. Hardware owners may still inspect memory unless the node passes platform attestation.</p>
+            <div className="runtime-actions"><button onClick={startManaged} disabled={managedBusy || managed?.running}>Start runtime</button><button className="secondary" onClick={stopManaged} disabled={managedBusy || !managed?.installed}>Stop</button><button className="ghost" onClick={refreshManaged} disabled={managedBusy}>Check</button></div>
           </div>
         </article>
         <article>

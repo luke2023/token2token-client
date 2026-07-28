@@ -1,4 +1,5 @@
 mod config;
+mod managed_vllm;
 
 use anyhow::{Context, Result, bail};
 use clap::{Parser, Subcommand};
@@ -48,6 +49,31 @@ enum Command {
     Discover,
     Run,
     Config,
+    ManagedVllm {
+        #[command(subcommand)]
+        command: ManagedVllmCommand,
+    },
+}
+
+#[derive(Subcommand)]
+enum ManagedVllmCommand {
+    Start {
+        #[arg(long, default_value = "Qwen/Qwen2.5-0.5B-Instruct")]
+        model: String,
+        #[arg(long, default_value_t = 18000)]
+        port: u16,
+        #[arg(long)]
+        cpu: bool,
+        #[arg(long, default_value_t = 1024)]
+        max_model_len: u32,
+        #[arg(long)]
+        image: Option<String>,
+    },
+    Stop,
+    Status {
+        #[arg(long, default_value_t = 18000)]
+        port: u16,
+    },
 }
 
 #[tokio::main]
@@ -88,6 +114,26 @@ async fn main() -> Result<()> {
         }
         Command::Run => run(Config::load(&path).await?, path).await?,
         Command::Config => println!("{}", path.display()),
+        Command::ManagedVllm { command } => match command {
+            ManagedVllmCommand::Start {
+                model,
+                port,
+                cpu,
+                max_model_len,
+                image,
+            } => {
+                managed_vllm::start(managed_vllm::StartOptions {
+                    model,
+                    port,
+                    cpu,
+                    max_model_len,
+                    image,
+                })
+                .await?
+            }
+            ManagedVllmCommand::Stop => managed_vllm::stop()?,
+            ManagedVllmCommand::Status { port } => managed_vllm::status(port)?,
+        },
     }
     Ok(())
 }

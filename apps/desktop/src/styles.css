@@ -30,8 +30,15 @@ button.ghost { color: #8fffaf; background: transparent; }
 .models { max-height: 170px; overflow: auto; margin-top: 12px; }
 .model { display: flex; justify-content: space-between; border-top: 1px solid #293a32; padding: 10px 0; }
 .model small, .muted { color: #71817a; }
+.managed { margin-top: 20px; border-top: 1px solid #294137; padding-top: 20px; }
+.managed-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.managed-head > div { display: flex; flex-direction: column; gap: 4px; }
+.managed-head small, .runtime-note { color: #71817a; font-size: 10px; line-height: 1.5; }
+.managed-head > span { color: #82928a; border: 1px solid #334b40; border-radius: 99px; padding: 5px 8px; font: 9px "DM Mono"; text-transform: uppercase; }
+.managed-head > span.runtime-on { color: #8fffaf; border-color: #477c58; box-shadow: inset 0 0 15px rgba(143, 255, 175, .06); }
+.runtime-grid { display: grid; grid-template-columns: 1fr .7fr .8fr; gap: 8px; }
+.runtime-actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .check { display: flex; gap: 8px; align-items: center; }
 .check input { width: auto; margin: 0; }
 .actions { display: flex; gap: 8px; margin-top: 20px; }
 footer { color: #596b62; text-align: center; padding: 26px 0 4px; }
-
