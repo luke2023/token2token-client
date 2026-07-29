@@ -9,5 +9,5 @@ The provider workflow will be:
 5. Publish eligible endpoints and receive routed work.
 6. Earn 95% of verified generation charges as Indigo.
 
-New verified physical GPUs may receive 500 expiring Green credits subject to
+New verified physical GPUs receive 500 Indigo credits subject to
 account, device, and anti-abuse limits.
